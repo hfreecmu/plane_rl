@@ -1,5 +1,4 @@
 import numpy as np
-import matplotlib.pyplot as plt
 
 I = np.eye(3)
 
@@ -186,32 +185,3 @@ def normalized_rk4_step(xk, uk, h):
     f4 = glider_dynamics_q(xk + h * f3, uk)
     xn = xk + (h / 6.0) * (f1 + 2 * f2 + 2 * f3 + f4)
     return xn
-
-
-Tf = 5.0
-h = 1.0/20
-tsamp = np.arange(0, Tf+h, h)
-N = len(tsamp)
-
-x0 = np.array([-10.0, 0.0, 10.0, 0.0, 0.9891199724086334, 0.0, -0.1471111150876924, 20.0,
-               0.0, 0.5678625279339364, 0.0, 0.0, 0.0])
-
-u0 = np.array([0.0, 0.27090666435590915, 0.0])
-
-x0_loop = x0
-u0_loop = u0
-
-xhist_rk4 = np.zeros((13,N))
-xhist_rk4[:,0] = x0_loop
-
-for k in range(N-1):
-    xhist_rk4[:,k+1] = normalized_rk4_step(xhist_rk4[:,k], u0_loop, h) # rk4 here
-
-pos_3d = xhist_rk4[0:3, :]
-
-fig = plt.figure()
-ax = fig.add_subplot(projection='3d')
-
-ax.scatter(pos_3d[0, :], pos_3d[1, :], pos_3d[2, :])
-plt.show()
-
