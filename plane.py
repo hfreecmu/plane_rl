@@ -215,3 +215,5 @@ ax = fig.add_subplot(projection='3d')
 ax.scatter(pos_3d[0, :], pos_3d[1, :], pos_3d[2, :])
 plt.show()
 
+np.savetxt('harry_traj.csv', xhist_rk4.T, delimiter=',')
+

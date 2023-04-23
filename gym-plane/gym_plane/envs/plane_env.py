@@ -20,7 +20,7 @@ class PlaneEnv(gym.Env):
         self.is_debug = info_dict["is_debug"]
 
         #observation space is
-        #13 for xaction
+        #13 for action
         #16*num_prev_steps for previous poses and controls
         #8*num_future_steps for next desired poses and if valid
         self.observation_shape = (13 + 16*self.num_prev_steps + 8*self.num_future_steps,)
@@ -28,6 +28,7 @@ class PlaneEnv(gym.Env):
             low=-self.clip_observations, high=self.clip_observations, shape=self.observation_shape, dtype=np.float32,
         )
 
+        assert self.clip_actions == 1
         #action space is control vector
         self.action_shape = (3,)
         self.action_space = gym.spaces.Box(
@@ -36,6 +37,7 @@ class PlaneEnv(gym.Env):
 
         self.N = self.target_traj.shape[0]
         if self.is_debug:
+            self.target_traj = self.target_traj[0:101]
             self.N = 101
 
     def reset(self):
@@ -53,15 +55,20 @@ class PlaneEnv(gym.Env):
         self.prev_us = np.zeros((self.num_prev_steps, 3))
 
         #read future steps from target trajectories
-        self.future_steps = np.zeros((self.num_future_steps, 8))
+        self.future_steps = np.zeros((self.num_future_steps, 7))
+        self.future_step_valid = np.zeros((self.num_future_steps, 1))
         max_future_ind = np.min([self.num_future_steps, self.target_traj.shape[0] - 1])
+        
+        breakpoint()
         for i in range(max_future_ind):
-            self.future_steps[i, 0:7] = self.target_traj[1 + i, 0:7]
-            self.future_steps[i, 7] = 1.0
+            self.future_steps[i, :] = self.target_traj[1 + i, :]
+            self.future_step_valid[i, :] = 1.0
 
         self.num_steps = 0
 
         self._make_observation()
+
+        breakpoint()
 
         return self.obs
 
@@ -111,6 +118,9 @@ class PlaneEnv(gym.Env):
         info = {}
         reward = pos_rew + quat_rew
 
+        self.latest_pos_error = pos_error
+        self.latest_quat_error = quat_error
+
         return obs, reward, done, info
   
     def render(self):
@@ -119,4 +129,20 @@ class PlaneEnv(gym.Env):
     def _make_observation(self):
         self.obs = np.concatenate((self.x, self.prev_xs.flatten(),
                                       self.prev_us.flatten(), 
-                                      self.future_steps.flatten())).astype(np.float32)
+                                      self.future_steps.flatten(),
+                                      self.future_step_valid.flatten())).astype(np.float32)
+        
+    def get_est_reward(self, obs):
+        #TODO put this in common function
+        pos_error = np.linalg.norm(obs[:, 0:3] - self.target_traj[self.num_steps + 1, 0:3], axis=1)
+        quat_error = np.linalg.norm(obs[:, 3:7] - self.target_traj[self.num_steps + 1, 3:7], axis=1)
+        
+        pos_rew = 1.0/(1 + pos_error**2)
+        pos_rew *= self.pos_rew_scale
+
+        quat_rew = 1.0/(1 + quat_error**2)
+        quat_rew *= self.quat_rew_scale
+
+        reward = pos_rew + quat_rew 
+
+        return reward

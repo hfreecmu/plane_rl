@@ -8,20 +8,20 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-def create_info_dict():
+def create_info_dict(**kwargs):
     info_dict = {}
-    info_dict["Tf"] = 5.0
-    info_dict["h"] = 1.0/20.0
-    info_dict["num_prev_steps"] = 5
-    info_dict["num_future_steps"] = 5
-    info_dict["clip_observations"] = 100.0
-    info_dict["clip_actions"] = 100.0
-    info_dict["pos_rew_scale"] = 0.7
-    info_dict["quat_rew_scale"] = 0.3
-    info_dict["is_debug"] = True
+    info_dict["Tf"] = kwargs["Tf"]
+    info_dict["h"] = kwargs["h"]
+    info_dict["num_prev_steps"] = kwargs["num_prev_steps"]
+    info_dict["num_future_steps"] = kwargs["num_future_steps"]
+    info_dict["clip_observations"] = kwargs["clip_observations"]
+    info_dict["clip_actions"] = kwargs["clip_actions"]
+    info_dict["pos_rew_scale"] = kwargs["pos_rew_scale"]
+    info_dict["quat_rew_scale"] = kwargs["quat_rew_scale"]
+    info_dict["is_debug"] = kwargs["is_debug"]
+    target_traj_path = kwargs["target_traj_path"]
 
     #load target_traj
-    target_traj_path = '/home/frc-ag-3/harry_ws/courses/grad_ai/final_project/loop_ref.csv'
     df = pd.read_csv(target_traj_path, header=None)
     target_traj = df.values
     info_dict["target_traj"] = target_traj
@@ -51,6 +51,60 @@ def build_train_cfg(
 
     return cfg
 
+def plot_all_rewards(full_rewards, agent_names, reward_file, tsamp, tag="Reward"):
+    means = []
+    stds = []
+    full_rewards = np.array(full_rewards)
+    for i in range(full_rewards.shape[1]):
+        agent_rewards = full_rewards[:, i, :]
+        means.append(np.mean(agent_rewards, axis=0))
+        stds.append(np.std(agent_rewards, axis=0))
+    for agent_name, mean, std in zip(agent_names, means, stds):
+        plt.plot(tsamp, mean, label=f"{tag} {agent_name}")
+        plt.fill_between(tsamp, mean - std, mean + std, alpha=0.3)
+    plt.legend()
+    plt.savefig(reward_file)
+    plt.clf()
+    plt.close()
+
+def plot_reward(rewards, agent_name, reward_file, tsamp, tag="Reward"):
+    y = np.array(rewards)
+    plt.plot(tsamp, y)
+    plt.ylabel(tag)
+    plt.xlabel("Time (s)")
+    title = f"Performance of {agent_name} Agent"
+    plt.title(title)
+    plt.savefig(reward_file)
+
+    plt.clf()
+
+def plot_all_trajectories(full_positions, agent_names, trajectory_file, tsamp):
+    means = []
+    full_positions = np.array(full_positions)
+    ax = plt.subplot(projection='3d')
+    for i in range(full_positions.shape[1]):
+        agent_positions = full_positions[:, i, :]
+        means.append(np.mean(agent_positions, axis=0))
+    for agent_name, mean in zip(agent_names, means):
+        ax.scatter(mean[:, 0], mean[:, 1], mean[:, 2], label=f"Trajectory of {agent_name}")
+    plt.legend()
+    plt.savefig(trajectory_file)
+    plt.clf()
+    plt.close()
+
+def save_and_plot_trajctory(positions, agent_name, 
+                            trajectory_file, trajectory_vis_file, 
+                            tsamp):
+    positions = np.array(positions)
+    ax = plt.subplot(projection='3d')
+    ax.scatter(positions[:, 0], positions[:, 1], positions[:, 2])
+    title = f"Trajectory of {agent_name} Agent"
+    plt.savefig(trajectory_vis_file)
+
+    plt.clf()
+
+    np.savetxt(trajectory_file, positions, delimiter=',')
+
 def run_trial(
     agent_types,
     policy,
@@ -68,6 +122,11 @@ def run_trial(
 
     vis_dirs = []
     model_dirs = []
+    reward_files = []
+    pos_error_files = []
+    quat_error_files = []
+    trajectory_files = []
+    trajectory_vis_files = []
     for agent_type_t in agent_types:
         vis_dir_agent_pre_trial = os.path.join(vis_dir, agent_type_t)
         if not os.path.exists(vis_dir_agent_pre_trial):
@@ -81,17 +140,29 @@ def run_trial(
 
         model_dirs.append(os.path.join(model_dir, agent_type_t))
 
+        reward_files.append(os.path.join(vis_dir_agent, "reward.png"))
+        pos_error_files.append(os.path.join(vis_dir_agent, "pos_error.png"))
+        quat_error_files.append(os.path.join(vis_dir_agent, "quat_error.png"))
+        trajectory_files.append(os.path.join(vis_dir_agent, "trajectory.csv"))
+        trajectory_vis_files.append(os.path.join(vis_dir_agent, "trajectory_vis.png"))
+
     # Merge kwargs and locals appropriately
-    #kwargs.update(locals())
-    #kwargs.pop("kwargs")
-    #info_dict = create_info_dict(**kwargs)
-    info_dict = create_info_dict()
+    kwargs.update(locals())
+    kwargs.pop("kwargs")
+    info_dict = create_info_dict(**kwargs)
+    Tf = info_dict["Tf"]
+    h = info_dict["h"]
+
+    tsamp = np.arange(0, Tf+h, h)
 
     envs = [None] * len(agent_types)
     envs[0] = gym.make("plane-v0", info_dict=info_dict)
 
     dones = [False] * len(agent_types)
     positions = [None] * len(agent_types)
+    rewards = [None] * len(agent_types)
+    pos_errors = [None] * len(agent_types)
+    quat_errors = [None] * len(agent_types)
 
     obs = [None] * len(agent_types)
     obs[0] = envs[0].reset()
@@ -100,6 +171,9 @@ def run_trial(
         if i > 0:
             envs[i] = copy.deepcopy(envs[0])
             obs[i] = copy.deepcopy(obs[0])
+
+        positions[i] = []
+        positions[i].append(obs[i][0:3])
 
     agents = []
     for i in range(len(agent_types)):
@@ -114,14 +188,34 @@ def run_trial(
                 continue
 
             action, _ = agents[i].get_action(obs[i], envs[i])
-            obs[i], _, dones[i], _ = envs[i].step(action)
+            obs[i], reward, dones[i], _ = envs[i].step(action)
+            pos_error = envs[i].latest_pos_error
+            quat_error = envs[i].latest_quat_error
 
-            if positions[i] is None:
-                positions[i] = []
+            if rewards[i] is None:
+                rewards[i] = []
+
+            if pos_errors[i] is None:
+                pos_errors[i] = []
+
+            if quat_errors[i] is None:
+                quat_errors[i] = []
 
             positions[i].append(obs[i][0:3])
+            rewards[i].append(reward)
+            pos_errors[i].append(pos_error)
+            quat_errors[i].append(quat_error)
 
-    return positions
+    for i in range(len(agent_types)):
+        plot_reward(rewards[i], agents[i].get_name(), reward_files[i], tsamp[1:])
+        plot_reward(pos_errors[i], agents[i].get_name(), pos_error_files[i], tsamp[1:], tag="Position Erros")
+        plot_reward(quat_errors[i], agents[i].get_name(), quat_error_files[i], tsamp[1:], tag="Quat Errors")
+        save_and_plot_trajctory(positions[i], agents[i].get_name(), 
+                                trajectory_files[i], trajectory_vis_files[i],
+                                tsamp)
+        
+
+    return positions, rewards, pos_errors, quat_errors, tsamp
 
 def test_agents(
     agent_types, num_trials, vis_dir, **kwargs,  # Unused, for compatability
@@ -130,16 +224,29 @@ def test_agents(
     kwargs.pop("kwargs")
 
     full_positions = []
+    full_rewards = []
+    full_pos_errors = []
+    full_quat_errors = []
+    full_tsamps = []
     for trial_num in range(num_trials):
-        positions = run_trial(trial_num=trial_num, **kwargs)
+        positions, rewards, pos_errors, quat_errors, tsamp = run_trial(trial_num=trial_num, **kwargs)
         full_positions.append(positions)
+        full_rewards.append(rewards)
+        full_pos_errors.append(pos_errors)
+        full_quat_errors.append(quat_errors)
+        full_tsamps.append(tsamp)
 
-    test_pos = np.array(full_positions[0][0])
+    reward_comparison_file = os.path.join(vis_dir, "reward_comparison.png")
+    plot_all_rewards(full_rewards, agent_types, reward_comparison_file, tsamp[1:])
 
-    fig = plt.figure()
-    ax = fig.add_subplot(projection='3d')
-    ax.scatter(test_pos[:, 0], test_pos[:, 1], test_pos[:, 2])
-    plt.show()
+    pos_error_comparison_file = os.path.join(vis_dir, "pos_errors_comparison.png")
+    plot_all_rewards(full_pos_errors, agent_types, pos_error_comparison_file, tsamp[1:], tag="Pos error")
+    
+    quat_error_comparison_file = os.path.join(vis_dir, "quat_errors_comparison.png")
+    plot_all_rewards(full_quat_errors, agent_types, quat_error_comparison_file, tsamp[1:], tag="Quat error")
+    
+    trajectory_comparison_file = os.path.join(vis_dir, "position_comparison.png")
+    plot_all_trajectories(full_positions, agent_types, trajectory_comparison_file, tsamp)
 
 def train_agent(
     agent_type,
@@ -157,10 +264,9 @@ def train_agent(
     model_dir = os.path.join(model_dir, agent_type)
     log_dir = os.path.join(log_dir, agent_type)
 
-    #kwargs.update(locals())
-    #kwargs.pop("kwargs")
-    #info_dict = create_info_dict(**kwargs)
-    info_dict = create_info_dict()
+    kwargs.update(locals())
+    kwargs.pop("kwargs")
+    info_dict = create_info_dict(**kwargs)
 
     env = gym.make("plane-v0", info_dict=info_dict)
     agent = agent_dict[agent_type](env.action_space)

@@ -16,7 +16,7 @@ def run():
     info_dict["is_debug"] = False
 
     #load target_traj
-    target_traj_path = '/home/frc-ag-3/harry_ws/courses/grad_ai/final_project/loop_ref.csv'
+    target_traj_path = '/home/frc-ag-3/harry_ws/courses/grad_ai/final_project/harry_traj.csv'
     df = read_csv(target_traj_path, header=None)
     target_traj = df.values
     info_dict["target_traj"] = target_traj

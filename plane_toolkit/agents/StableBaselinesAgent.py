@@ -1,6 +1,6 @@
 import os
 from plane_toolkit.agents.BaseAgent import BaseAgent
-from stable_baselines3 import PPO
+from stable_baselines3 import PPO, TD3
 from stable_baselines3.common.vec_env import DummyVecEnv
 from stable_baselines3.common.callbacks import CheckpointCallback
 
@@ -79,4 +79,30 @@ class PPOAgent(BaseStableBaselinesAgent):
             max_grad_norm=0.5,
             n_epochs=20,
             batch_size=256,
+        )
+
+class TD3Agent(BaseStableBaselinesAgent):
+    def __init__(self, env):
+        self.name = "TD3"
+        self.policy = None
+        self.model_name = "td3_model"
+        self.rl_alg_class = TD3
+        self.model = None
+
+    def _create_model(self, cfg, env):
+        learning_rate = cfg["learning_rate"]
+        verbose = cfg["verbose"]
+
+        self.model = self.rl_alg_class(
+            self.policy,
+            env,
+            learning_rate=learning_rate,
+            buffer_size=10000,
+            learning_starts=10000, 
+            batch_size=128, 
+            tau=0.01, 
+            gamma=0.99,
+            train_freq=4,
+            gradient_steps=1,
+            verbose=verbose,
         )
