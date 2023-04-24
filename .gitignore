@@ -3,6 +3,5 @@ dep/
 .vscode
 logs/
 models/
-*.csv
 *.egg-info/
 __pycache__
