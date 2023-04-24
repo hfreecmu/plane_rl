@@ -19,9 +19,9 @@ class PlaneEnv(gym.Env):
         #max/min observation space scalings from input
         self.obs_bound_factor = info_dict["obs_bound_factor"]
 
-        self.pos_rew_scale = info_dict["pos_rew_scale"]
-        self.quat_rew_scale = info_dict["quat_rew_scale"]
-        self.u_rew_scale = info_dict["u_rew_scale"]
+        self.pos_rew_scale = 1.0#info_dict["pos_rew_scale"]
+        self.quat_rew_scale = 0.0#info_dict["quat_rew_scale"]
+        self.u_rew_scale = 0.0#info_dict["u_rew_scale"]
         ###end parse info_dict
 
         #for means and stds, use opt control output
@@ -36,8 +36,12 @@ class PlaneEnv(gym.Env):
         #dynamics model requires actions to be in (0:255)
         self.action_min = 0.0
         self.action_max = 255.0
+        self.clip_actions = 1.0
 
-        self.obs_bound = self.obs_bound_factor*np.max(np.abs(self.ilqr_res))
+        self.clip_positions = 10.0
+        self.clip_v = 10.0
+        self.clip_w = 2*np.pi
+        self.x_bound = self.obs_bound_factor*np.max(np.abs(self.ilqr_res))
 
         #for starters observation space will
         #13 for x
@@ -49,9 +53,9 @@ class PlaneEnv(gym.Env):
         #     low=-self.obs_bound, high=self.obs_bound, shape=self.observation_shape, dtype=np.float32,
         # )
         # self.obs = np.zeros(self.observation_shape, dtype=np.float32)
-        self.observation_shape = (4,)
+        self.observation_shape = (13,)
         self.observation_space = gym.spaces.Box(
-            low=-1.0, high=1.0, shape=self.observation_shape, dtype=np.float32,
+            low=-np.inf, high=np.inf, shape=self.observation_shape, dtype=np.float32,
         )
         self.obs = np.zeros(self.observation_shape, dtype=np.float32)
 
@@ -90,55 +94,69 @@ class PlaneEnv(gym.Env):
         self.ilqr_res = ilqr_res
         self.ilqr_control = ilqr_control
 
+        #target position for this branch
+        self.target_pos = self.ilqr_res[51, 0:3]
+
     def reset(self):
         #initial state
 
         self.x = np.copy(self.ilqr_res[0, :])
-        #TODO get values that lead to 0 control
-        self.last_u = np.zeros((4,))
         self.num_steps = 0
 
-        self._make_observation(False)
+        self._make_observation() 
+
+        self.init_distance = np.linalg.norm(self.x[0:3] - self.target_pos)
 
         return np.copy(self.obs)
 
     def step(self, action):
         if not (len(action.shape) == 1):
             raise RuntimeError("dim issue again")
+        
+        action = np.clip(action, -self.clip_actions, self.clip_actions)
 
         #rescale action to get us
-        self.last_u = self.unnormalize_action(action)
+        last_u = self.unnormalize_action(action)
 
         #update x
-        x_new = normalized_rk4_step(self.yak, self.x, self.last_u, self.h)
+        x_new = normalized_rk4_step(self.yak, self.x, last_u, self.h)
 
         if not len(x_new.shape) == 1:
             raise RuntimeError("dim issue again")
         
-        if (np.max(np.abs(x_new)) >= self.obs_bound):
-            done = 1
-            reward = 0
-            self.x = x_new
-            self.num_steps += 1
-            self._make_observation(done, bad_obs=True)
-            obs = np.copy(self.obs)
-            self.latest_pos_error = 100
-            self.latest_quat_error = 100
-            self.latest_u_error = 100
-            info = {}
-            return obs, reward, done, info
-
         if np.isnan(x_new).sum():
             raise RuntimeError('x_new isnan')
+        
+        #unstable flight
+        if (np.max(np.abs(x_new)) >= self.x_bound):
+            reward, pos_error, quat_error, u_error, _ = self.compute_reward(x_new[0:3], x_new[3:7], last_u)
+            #reward = -100
+            
+            self.x = x_new
+            self.num_steps += 1
+            done = True
 
-        #compare to target pos which is num_steps + 1
-        reward, pos_error, quat_error, u_error = self.compute_reward(x_new[0:3], x_new[3:7], self.last_u)
+            self._make_observation()
+
+            obs = np.copy(self.obs)
+            info = {}
+
+            self.latest_pos_error = pos_error
+            self.latest_quat_error = quat_error
+            self.latest_u_error = u_error
+
+            return obs, reward, done, info
+
+        reward, pos_error, quat_error, u_error, reset = self.compute_reward(x_new[0:3], x_new[3:7], last_u)
 
         self.x = x_new
         self.num_steps += 1
-        done = self.num_steps >= self.N
+        if reset:
+            done = True
+        else:
+            done = self.num_steps >= self.N
 
-        self._make_observation(done)
+        self._make_observation()
 
         obs = np.copy(self.obs)
         info = {}
@@ -152,22 +170,17 @@ class PlaneEnv(gym.Env):
     def render(self):
         pass
 
-    def _make_observation(self, done, bad_obs=False):
-        # self.obs[0:3] = (self.x[0:3] - self.pos_mean) / self.pos_std
-        # self.obs[7:10] = (self.x[7:10] - self.v_mean) / self.v_std
-        # self.obs[10:13] = (self.x[10:] - self.w_mean) / self.w_std
-        # self.obs[13:17] = self.normalize_action(self.last_u)
-        # self.obs[17] = 2*(self.num_steps / self.N) - 1
-        if not done:
-            self.obs[:] = self.normalize_action(self.ilqr_control[self.num_steps, :])
-        else:
-            pass
-
-        #should never be needed I think but adding just in case
-        #self.obs = np.clip(self.obs, -self.obs_bound, self.obs_bound)
-        if not bad_obs and np.max(np.abs(self.obs)) >= self.obs_bound:
-            raise RuntimeError("obs_bound reached in make_observation for step: " + str(self.num_steps))
+    def _make_observation(self):
+        self.obs[0:3] = np.clip(self.x[0:3], -self.clip_positions, self.clip_positions)
+        self.obs[3:7] = self.x[3:7]
+        self.obs[7:10] = np.clip(self.x[7:10], -self.clip_v, self.clip_v)
+        self.obs[10:13] = np.clip(self.x[10:13], -self.clip_w, self.clip_w)
         
+        self.obs[0:3] = (self.obs[0:3] - self.pos_mean) / self.pos_std
+        self.obs[3:7] = self.obs[3:7] / np.linalg.norm(self.obs[3:7])
+        self.obs[7:10] = (self.obs[7:10] - self.v_mean) / self.v_std
+        self.obs[10:13] = (self.obs[10:13] - self.w_mean) / self.w_std
+
     def normalize_action(self, u):
         return 2*(u - self.action_min) / (self.action_max - self.action_min) - 1
     
@@ -177,10 +190,12 @@ class PlaneEnv(gym.Env):
     
     def compute_reward(self, pos, quat, u, single_axis=True):
         if single_axis:
-            pos_error = np.linalg.norm(pos - self.ilqr_res[self.num_steps + 1, 0:3])
-            quat_error = calc_quat_error(quat, self.ilqr_res[self.num_steps + 1, 3:7])
-            u_error = np.linalg.norm(u - self.ilqr_control[self.num_steps])
+            #pos_error = np.linalg.norm(pos - self.ilqr_res[self.num_steps + 1, 0:3])
+            pos_error = np.linalg.norm(pos - self.target_pos)
+            quat_error = 0#calc_quat_error(quat, self.ilqr_res[self.num_steps + 1, 3:7])
+            u_error = 0#np.linalg.norm(u - self.ilqr_control[self.num_steps])
         else:
+            raise RuntimeError('not supported with canges')
             pos_error = np.linalg.norm(pos - self.ilqr_res[self.num_steps + 1, 0:3], axis=1)
             
             quat_error = np.zeros(pos_error.shape)
@@ -188,43 +203,18 @@ class PlaneEnv(gym.Env):
                 quat_error[i] = calc_quat_error(quat[i], self.ilqr_res[self.num_steps + 1, 3:7])
             u_error = np.linalg.norm(u - self.ilqr_control[self.num_steps], axis=1)
 
-        pos_rew = 1.0/(1 + pos_error**2)
+        pos_rew = 1.0/(1.0 + pos_error**2)
         pos_rew *= self.pos_rew_scale
 
-        quat_rew = 1.0/(1 + quat_error**2)
+        quat_rew = 1.0/(1.0 + quat_error**2)
         quat_rew *= self.quat_rew_scale
 
-        u_rew = 1.0/(1 + u_error**2)
+        u_rew = 1.0/(1.0 + u_error**2)
         u_rew *= self.u_rew_scale
 
         reward = pos_rew + quat_rew + u_rew
 
-        return reward, pos_error, quat_error, u_error
+        #reset too far wrong direction
+        reset = ((pos_error - self.init_distance) > 5)
 
-    def get_est_reward(self, obs):
-        if not len(obs.shape) == 2:
-            raise RuntimeError('expecting size of 2 here')
-        
-        pos = obs[:, 0:3] * self.pos_std + self.pos_mean
-        quat = obs[:, 3:7]
-        u = self.unnormalize_action(obs[:, 13:17])
-        reward, _, _, _ = self.compute_reward(pos, quat, u, single_axis=False)
-
-        return reward
-
-
-
-    # def get_est_reward(self, obs):
-    #     #TODO put this in common function
-    #     pos_error = np.linalg.norm(obs[:, 0:3] - self.target_traj[self.num_steps + 1, 0:3], axis=1)
-    #     quat_error = np.linalg.norm(obs[:, 3:7] - self.target_traj[self.num_steps + 1, 3:7], axis=1)
-        
-    #     pos_rew = 1.0/(1 + pos_error**2)
-    #     pos_rew *= self.pos_rew_scale
-
-    #     quat_rew = 1.0/(1 + quat_error**2)
-    #     quat_rew *= self.quat_rew_scale
-
-    #     reward = pos_rew + quat_rew 
-
-    #     return reward
+        return reward, pos_error, quat_error, u_error, reset

@@ -43,6 +43,18 @@ def build_train_cfg(
 def plot_all_rewards(full_rewards, agent_names, reward_file, tsamp, tag="Reward"):
     means = []
     stds = []
+
+    max_len = 0
+    for i in range(len(full_rewards)):
+        for j in range(len(agent_names)):
+            max_len = np.max([max_len, len(full_rewards[i][j])])
+    
+    for i in range(len(full_rewards)):
+        for j in range(len(agent_names)):
+            tmp = np.zeros((max_len))
+            tmp[0:len(full_rewards[i][j])] = full_rewards[i][j]
+            full_rewards[i][j] = tmp
+
     full_rewards = np.array(full_rewards)
     for i in range(full_rewards.shape[1]):
         agent_rewards = full_rewards[:, i, :]
@@ -69,6 +81,18 @@ def plot_reward(rewards, agent_name, reward_file, tsamp, tag="Reward"):
 
 def plot_all_trajectories(full_positions, agent_names, trajectory_file, tsamp):
     means = []
+
+    max_len = 0
+    for i in range(len(full_positions)):
+        for j in range(len(agent_names)):
+            max_len = np.max([max_len, len(full_positions[i][j])])
+    
+    for i in range(len(full_positions)):
+        for j in range(len(agent_names)):
+            tmp = np.zeros((max_len, 3))
+            tmp[0:len(full_positions[i][j])] = full_positions[i][j]
+            full_positions[i][j] = tmp
+
     full_positions = np.array(full_positions)
     ax = plt.subplot(projection='3d')
     for i in range(full_positions.shape[1]):

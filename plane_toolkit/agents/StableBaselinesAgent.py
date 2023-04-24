@@ -69,8 +69,11 @@ class PPOAgent(BaseStableBaselinesAgent):
         n_steps = cfg["n_steps"]
         verbose = cfg["verbose"]
 
+        # policy_kwargs = dict(activation_fn=torch.nn.ReLU,
+        #                      net_arch=[dict(pi=[256, 256, 128], vf=[256, 256, 128])])
+
         policy_kwargs = dict(activation_fn=torch.nn.ReLU,
-                             net_arch=[dict(pi=[256, 256, 128], vf=[256, 256, 128])])
+                             net_arch=[dict(pi=[32, 32, 8], vf=[32, 32, 8])])
 
         #TODO should squash?
 
