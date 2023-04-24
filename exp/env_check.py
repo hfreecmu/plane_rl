@@ -7,9 +7,7 @@ def run():
     info_dict = {}
     info_dict["target_traj_yml"] = '/home/frc-ag-3/harry_ws/courses/grad_ai/final_project/trajectories/iLQR_loop/iqrl.yml'
     info_dict["obs_bound_factor"] = 2.0
-    info_dict["pos_rew_scale"] = 1.0
-    info_dict["quat_rew_scale"] = 1.0
-    info_dict["u_rew_scale"] = 1.0
+    info_dict["pos_tol"] = 1.0
 
     env = gym.make("plane-v0", info_dict=info_dict)
     check_env(env)

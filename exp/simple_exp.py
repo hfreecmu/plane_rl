@@ -6,11 +6,10 @@ import numpy as np
 
 def run():
     info_dict = {}
-    info_dict["target_traj_yml"] = '/home/frc-ag-3/harry_ws/courses/grad_ai/final_project/trajectories/iLQR_loop/iqrl.yml'
+    #info_dict["target_traj_yml"] = '/home/frc-ag-3/harry_ws/courses/grad_ai/final_project/trajectories/iLQR_loop/iqrl.yml'
+    info_dict["target_traj_yml"] = '/home/frc-ag-3/harry_ws/courses/grad_ai/final_project/trajectories/iLQR_immelman/iqrl.yml'
     info_dict["obs_bound_factor"] = 2.0
-    info_dict["pos_rew_scale"] = 1.0
-    info_dict["quat_rew_scale"] = 1.0
-    info_dict["u_rew_scale"] = 1.0
+    info_dict["pos_tol"] = 1.0
 
     env = gym.make("plane-v0", info_dict=info_dict)
     _ = env.reset()
@@ -42,6 +41,8 @@ def run():
 
     positions = np.array(positions)
     rewards = np.array(rewards)
+
+    print(rewards.shape)
 
     ax.scatter(positions[:, 0], positions[:, 1], positions[:, 2])
     plt.show()

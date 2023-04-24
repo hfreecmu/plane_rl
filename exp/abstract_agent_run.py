@@ -7,7 +7,7 @@ ex = Experiment("rl_train_test")
 
 @ex.config
 def config():
-    agent_types = ["PPO"]  # Which agents to train or test on
+    agent_types = ["CO"]  # Which agents to train or test on
     policy = "MlpPolicy"  # What policy to use, can also be CNN
     num_trials = 1#20  # How many test runs to run
     vis_dir = "vis"  # Where to save visualization
@@ -37,9 +37,11 @@ def config():
     pos_rew_scale = 1.0
     quat_rew_scale = 1.0
     u_rew_scale = 1.0
-    target_traj_yml = '/home/frc-ag-3/harry_ws/courses/grad_ai/final_project/trajectories/iLQR_loop/iqrl.yml'
+    #target_traj_yml = '/home/frc-ag-3/harry_ws/courses/grad_ai/final_project/trajectories/iLQR_loop/iqrl.yml'
+    target_traj_yml = '/home/frc-ag-3/harry_ws/courses/grad_ai/final_project/trajectories/iLQR_immelman/iqrl.yml'
     obs_bound_factor = 10.0
-    train = True
+    pos_tol = 1.0
+    train = False
 
 @ex.automain
 def main(
@@ -60,6 +62,7 @@ def main(
     u_rew_scale,
     target_traj_yml,
     obs_bound_factor,
+    pos_tol,
     train,
     _run,
 ):

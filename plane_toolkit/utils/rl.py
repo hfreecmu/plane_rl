@@ -14,6 +14,7 @@ def create_info_dict(**kwargs):
     info_dict["quat_rew_scale"] = kwargs["quat_rew_scale"]
     info_dict["u_rew_scale"] = kwargs["u_rew_scale"]
     info_dict["obs_bound_factor"] = kwargs["obs_bound_factor"]
+    info_dict["pos_tol"] = kwargs["pos_tol"]
 
     return info_dict
 
@@ -79,13 +80,13 @@ def plot_reward(rewards, agent_name, reward_file, tsamp, tag="Reward"):
 
     plt.clf()
 
-def plot_all_trajectories(full_positions, agent_names, trajectory_file, tsamp):
+def plot_all_trajectories(full_positions, full_ref_trajs, agent_names, trajectory_file, tsamp):
     means = []
-
+    traj_means = []
     max_len = 0
     for i in range(len(full_positions)):
         for j in range(len(agent_names)):
-            max_len = np.max([max_len, len(full_positions[i][j])])
+            max_len = np.max([max_len, len(full_positions[i][j]), len(full_ref_trajs[i][j])])
     
     for i in range(len(full_positions)):
         for j in range(len(agent_names)):
@@ -93,22 +94,40 @@ def plot_all_trajectories(full_positions, agent_names, trajectory_file, tsamp):
             tmp[0:len(full_positions[i][j])] = full_positions[i][j]
             full_positions[i][j] = tmp
 
+            tmp = np.zeros((max_len, 3))
+            tmp[0:len(full_ref_trajs[i][j])] = full_ref_trajs[i][j]
+            full_ref_trajs[i][j] = tmp
+
     full_positions = np.array(full_positions)
+    full_ref_trajs = np.array(full_ref_trajs)
     ax = plt.subplot(projection='3d')
     for i in range(full_positions.shape[1]):
         agent_positions = full_positions[:, i, :]
         means.append(np.mean(agent_positions, axis=0))
+
+        ###WARNING WARNING WARNING
+        #just doing this because I am lazy
+        #and it matches other code. Probs 
+        #don't want to average reference traj.
+        #But at same time, don't want to average any traj
+        #and may just want to do this in single vis
+        ref_trajs = full_ref_trajs[:, i, :]
+        traj_means.append(np.mean(ref_trajs, axis=0))
     for agent_name, mean in zip(agent_names, means):
         ax.scatter(mean[:, 0], mean[:, 1], mean[:, 2], label=f"Trajectory of {agent_name}")
+
+    #assume all ref trajs are same
+    ax.scatter(traj_means[0][:, 0], traj_means[0][:, 1], traj_means[0][:, 2], label=f"Ref Traj")
     plt.legend()
     plt.savefig(trajectory_file)
     plt.clf()
     plt.close()
 
-def save_and_plot_trajctory(positions, agent_name, 
+def save_and_plot_trajctory(positions, xs, agent_name, 
                             trajectory_file, trajectory_vis_file, 
                             tsamp):
     positions = np.array(positions)
+    xs = np.array(xs)
     ax = plt.subplot(projection='3d')
     ax.scatter(positions[:, 0], positions[:, 1], positions[:, 2])
     title = f"Trajectory of {agent_name} Agent"
@@ -116,7 +135,7 @@ def save_and_plot_trajctory(positions, agent_name,
 
     plt.clf()
 
-    np.savetxt(trajectory_file, positions, delimiter=',')
+    np.savetxt(trajectory_file, xs, delimiter=',')
 
 def run_trial(
     agent_types,
@@ -173,6 +192,8 @@ def run_trial(
 
     dones = [False] * len(agent_types)
     positions = [None] * len(agent_types)
+    xs = [None] * len(agent_types)
+    ref_trajs = [None] * len(agent_types)
     rewards = [None] * len(agent_types)
     pos_errors = [None] * len(agent_types)
     quat_errors = [None] * len(agent_types)
@@ -187,8 +208,10 @@ def run_trial(
             obs[i] = copy.deepcopy(obs[0])
 
         positions[i] = []
-        #positions[i].append(obs[i][0:3])
         positions[i].append(envs[i].x[0:3])
+        xs[i] = []
+        xs[i].append(envs[i].x)
+        ref_trajs[i] = np.copy(envs[i].ilqr_ref[:, 0:3])
 
     agents = []
     for i in range(len(agent_types)):
@@ -220,8 +243,8 @@ def run_trial(
             if u_errors[i] is None:
                 u_errors[i] = []
 
-            #positions[i].append(obs[i][0:3])
             positions[i].append(envs[i].x[0:3])
+            xs[i].append(envs[i].x)
             rewards[i].append(reward)
             pos_errors[i].append(pos_error)
             quat_errors[i].append(quat_error)
@@ -232,12 +255,12 @@ def run_trial(
         plot_reward(pos_errors[i], agents[i].get_name(), pos_error_files[i], tsamp[1:], tag="Position Erros")
         plot_reward(quat_errors[i], agents[i].get_name(), quat_error_files[i], tsamp[1:], tag="Quat Errors")
         plot_reward(u_errors[i], agents[i].get_name(), u_error_files[i], tsamp[1:], tag="U Errors")
-        save_and_plot_trajctory(positions[i], agents[i].get_name(), 
+        save_and_plot_trajctory(positions[i], xs[i], agents[i].get_name(), 
                                 trajectory_files[i], trajectory_vis_files[i],
                                 tsamp)
         
 
-    return positions, rewards, pos_errors, quat_errors, tsamp
+    return positions, ref_trajs, rewards, pos_errors, quat_errors, tsamp
 
 def test_agents(
     agent_types, num_trials, vis_dir, **kwargs,  # Unused, for compatability
@@ -246,13 +269,15 @@ def test_agents(
     kwargs.pop("kwargs")
 
     full_positions = []
+    full_ref_trajs = []
     full_rewards = []
     full_pos_errors = []
     full_quat_errors = []
     full_tsamps = []
     for trial_num in range(num_trials):
-        positions, rewards, pos_errors, quat_errors, tsamp = run_trial(trial_num=trial_num, **kwargs)
+        positions, ref_trajs, rewards, pos_errors, quat_errors, tsamp = run_trial(trial_num=trial_num, **kwargs)
         full_positions.append(positions)
+        full_ref_trajs.append(ref_trajs)
         full_rewards.append(rewards)
         full_pos_errors.append(pos_errors)
         full_quat_errors.append(quat_errors)
@@ -268,7 +293,7 @@ def test_agents(
     plot_all_rewards(full_quat_errors, agent_types, quat_error_comparison_file, tsamp[1:], tag="Quat error")
     
     trajectory_comparison_file = os.path.join(vis_dir, "position_comparison.png")
-    plot_all_trajectories(full_positions, agent_types, trajectory_comparison_file, tsamp)
+    plot_all_trajectories(full_positions, full_ref_trajs, agent_types, trajectory_comparison_file, tsamp)
 
 def train_agent(
     agent_type,

@@ -19,6 +19,9 @@ class PlaneEnv(gym.Env):
         #max/min observation space scalings from input
         self.obs_bound_factor = info_dict["obs_bound_factor"]
 
+        #terminate position
+        self.pos_tol = info_dict["pos_tol"]
+
         self.pos_rew_scale = 1.0#info_dict["pos_rew_scale"]
         self.quat_rew_scale = 1.0#info_dict["quat_rew_scale"]
         self.u_rew_scale = 0.0#info_dict["u_rew_scale"]
@@ -75,7 +78,6 @@ class PlaneEnv(gym.Env):
 
         self.Tf = target_traj_info["Tf"]
         self.h = target_traj_info["h"]
-        self.num_waypoints = target_traj_info["num_waypoints"]
 
         dirname = os.path.dirname(target_traj_yml)
 
@@ -243,6 +245,6 @@ class PlaneEnv(gym.Env):
         reward = pos_rew + pos_rew * (quat_rew + lin_vel_rew + ang_vel_rew)
 
         #reset when error is too far
-        reset = ((pos_error) > 1)
+        reset = (pos_error > self.pos_tol)
 
         return reward, pos_error, quat_error, reset

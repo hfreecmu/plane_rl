@@ -1,0 +1,5 @@
+Tf: 2.5
+h: 0.0125 #1/80
+ilqr_ref: 'immelman_ref.csv'
+ilqr_res: 'immelman_iLQR.csv'
+ilqr_control: 'immelman_controls_iLQR.csv'

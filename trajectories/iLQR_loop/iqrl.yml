@@ -1,6 +1,5 @@
 Tf: 2.5
 h: 0.0125 #1/80
-num_waypoints: 4
 ilqr_ref: 'loop_ref.csv'
 ilqr_res: 'iLQR_Result.csv'
 ilqr_control: 'loop_iLQR_controls.csv'
