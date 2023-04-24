@@ -7,7 +7,7 @@ ex = Experiment("rl_train_test")
 
 @ex.config
 def config():
-    agent_types = ["TD3"]  # Which agents to train or test on
+    agent_types = ["CO", "PPO"]  # Which agents to train or test on
     policy = "MlpPolicy"  # What policy to use, can also be CNN
     num_trials = 1#20  # How many test runs to run
     vis_dir = "vis"  # Where to save visualization
@@ -17,7 +17,7 @@ def config():
     # learning_rate can be set on the command line
     LR_DICT = {
         "DQN": 0.0001,
-        "PPO": 0.0003,
+        "PPO": 1e-3,#0.0003,
         "DDPG": 0.001,
         "SAC": 0.0003,
         "random": None,
@@ -27,9 +27,10 @@ def config():
         "DA": None,
         "Perfect": None,
         "TD3": 0.0005,
+        "CO": None,
     }
     learning_rate = LR_DICT[agent_types[0]]
-    n_steps = 2048
+    n_steps = 4096#2048
     total_timesteps = 1000000#300000
     verbose = 1
     save_freq = 1000

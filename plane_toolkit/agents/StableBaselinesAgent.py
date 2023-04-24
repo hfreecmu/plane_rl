@@ -3,6 +3,7 @@ from plane_toolkit.agents.BaseAgent import BaseAgent
 from stable_baselines3 import PPO, TD3
 from stable_baselines3.common.vec_env import DummyVecEnv
 from stable_baselines3.common.callbacks import CheckpointCallback
+import torch
 
 class BaseStableBaselinesAgent(BaseAgent):
     def __init__(self, env):
@@ -68,17 +69,28 @@ class PPOAgent(BaseStableBaselinesAgent):
         n_steps = cfg["n_steps"]
         verbose = cfg["verbose"]
 
+        policy_kwargs = dict(activation_fn=torch.nn.ReLU,
+                             net_arch=[dict(pi=[256, 256, 128], vf=[256, 256, 128])])
+
+        #TODO should squash?
+
         self.model = self.rl_alg_class(
             self.policy,
             env,
-            n_steps=n_steps,
             learning_rate=learning_rate,
-            verbose=verbose,
-            ent_coef=0.00,
-            use_sde=True,
-            max_grad_norm=0.5,
-            n_epochs=10,#20,
+            n_steps=n_steps,
             batch_size=64,#256,
+            n_epochs = 10, #new
+            gamma = 0.99,
+            gae_lambda = 0.95,
+            clip_range = 0.2,
+            normalize_advantage=True,
+            ent_coef=0.00,
+            vf_coef=1.0, #0.5, #unsure what it is in rl_games, but skrl 1.0
+            max_grad_norm=1.0, #0.5,
+            use_sde=False,#True,
+            policy_kwargs=policy_kwargs,
+            verbose=verbose,
         )
 
 class TD3Agent(BaseStableBaselinesAgent):

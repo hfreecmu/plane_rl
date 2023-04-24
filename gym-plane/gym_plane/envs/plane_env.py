@@ -43,9 +43,15 @@ class PlaneEnv(gym.Env):
         #13 for x
         #4 for last control vector
         #1 for timestep
-        self.observation_shape = (18,)
+
+        # self.observation_shape = (18,)
+        # self.observation_space = gym.spaces.Box(
+        #     low=-self.obs_bound, high=self.obs_bound, shape=self.observation_shape, dtype=np.float32,
+        # )
+        # self.obs = np.zeros(self.observation_shape, dtype=np.float32)
+        self.observation_shape = (4,)
         self.observation_space = gym.spaces.Box(
-            low=-self.obs_bound, high=self.obs_bound, shape=self.observation_shape, dtype=np.float32,
+            low=-1.0, high=1.0, shape=self.observation_shape, dtype=np.float32,
         )
         self.obs = np.zeros(self.observation_shape, dtype=np.float32)
 
@@ -92,7 +98,7 @@ class PlaneEnv(gym.Env):
         self.last_u = np.zeros((4,))
         self.num_steps = 0
 
-        self._make_observation()
+        self._make_observation(False)
 
         return np.copy(self.obs)
 
@@ -114,10 +120,11 @@ class PlaneEnv(gym.Env):
             reward = 0
             self.x = x_new
             self.num_steps += 1
-            self._make_observation(bad_obs=True)
-            obs = self.obs
-            self.latest_pos_error = 0
-            self.latest_quat_error = 0
+            self._make_observation(done, bad_obs=True)
+            obs = np.copy(self.obs)
+            self.latest_pos_error = 100
+            self.latest_quat_error = 100
+            self.latest_u_error = 100
             info = {}
             return obs, reward, done, info
 
@@ -131,9 +138,9 @@ class PlaneEnv(gym.Env):
         self.num_steps += 1
         done = self.num_steps >= self.N
 
-        self._make_observation()
+        self._make_observation(done)
 
-        obs = self.obs
+        obs = np.copy(self.obs)
         info = {}
 
         self.latest_pos_error = pos_error
@@ -145,14 +152,16 @@ class PlaneEnv(gym.Env):
     def render(self):
         pass
 
-    def _make_observation(self, bad_obs=False):
-        self.obs[0:3] = (self.x[0:3] - self.pos_mean) / self.pos_std
-        self.obs[7:10] = (self.x[7:10] - self.v_mean) / self.v_std
-        self.obs[10:13] = (self.x[10:] - self.w_mean) / self.w_std
-
-        self.obs[13:17] = self.normalize_action(self.last_u)
-
-        self.obs[17] = 2*(self.num_steps / self.N) - 1
+    def _make_observation(self, done, bad_obs=False):
+        # self.obs[0:3] = (self.x[0:3] - self.pos_mean) / self.pos_std
+        # self.obs[7:10] = (self.x[7:10] - self.v_mean) / self.v_std
+        # self.obs[10:13] = (self.x[10:] - self.w_mean) / self.w_std
+        # self.obs[13:17] = self.normalize_action(self.last_u)
+        # self.obs[17] = 2*(self.num_steps / self.N) - 1
+        if not done:
+            self.obs[:] = self.normalize_action(self.ilqr_control[self.num_steps, :])
+        else:
+            pass
 
         #should never be needed I think but adding just in case
         #self.obs = np.clip(self.obs, -self.obs_bound, self.obs_bound)

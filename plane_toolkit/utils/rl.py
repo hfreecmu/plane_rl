@@ -163,7 +163,8 @@ def run_trial(
             obs[i] = copy.deepcopy(obs[0])
 
         positions[i] = []
-        positions[i].append(obs[i][0:3])
+        #positions[i].append(obs[i][0:3])
+        positions[i].append(envs[i].x[0:3])
 
     agents = []
     for i in range(len(agent_types)):
@@ -195,7 +196,8 @@ def run_trial(
             if u_errors[i] is None:
                 u_errors[i] = []
 
-            positions[i].append(obs[i][0:3])
+            #positions[i].append(obs[i][0:3])
+            positions[i].append(envs[i].x[0:3])
             rewards[i].append(reward)
             pos_errors[i].append(pos_error)
             quat_errors[i].append(quat_error)
