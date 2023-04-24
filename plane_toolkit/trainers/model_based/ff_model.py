@@ -79,10 +79,10 @@ class FFModel(nn.Module, BaseModel):
         """
 
         # normalize input data to mean 0, std 1
-        #obs_normalized = normalize(obs_unnormalized, obs_mean, obs_std) # TODO(Q1)
-        #acs_normalized = normalize(acs_unnormalized, acs_mean, acs_std) # TODO(Q1)
-        obs_normalized = obs_unnormalized
-        acs_normalized = acs_unnormalized
+        obs_normalized = normalize(obs_unnormalized, obs_mean, obs_std) # TODO(Q1)
+        acs_normalized = normalize(acs_unnormalized, acs_mean, acs_std) # TODO(Q1)
+        #obs_normalized = obs_unnormalized
+        #acs_normalized = acs_unnormalized
 
         # predicted change in obs
         concatenated_input = torch.cat([obs_normalized, acs_normalized], dim=1)
@@ -91,8 +91,8 @@ class FFModel(nn.Module, BaseModel):
         # Hint: as described in the PDF, the output of the network is the
         # *normalized change* in state, i.e. normalized(s_t+1 - s_t).
         delta_pred_normalized = self.delta_network(concatenated_input) # TODO(Q1)
-        #delta_pred = unnormalize(delta_pred_normalized, delta_mean, delta_std)
-        delta_pred = delta_pred_normalized
+        delta_pred = unnormalize(delta_pred_normalized, delta_mean, delta_std)
+        #delta_pred = delta_pred_normalized
         next_obs_pred = delta_pred + obs_unnormalized # TODO(Q1)
 
         return next_obs_pred, delta_pred_normalized
@@ -113,16 +113,17 @@ class FFModel(nn.Module, BaseModel):
         """
         obs = ptu.from_numpy(obs)
         acs = ptu.from_numpy(acs)
-        # new_data_statistics = {
-        #     k: ptu.from_numpy(v) for k,v in data_statistics.items()
-        # }
+        new_data_statistics = {
+            k: ptu.from_numpy(v) for k,v in data_statistics.items()
+        }
 
-        obs_mean = None#new_data_statistics['obs_mean']
-        obs_std = None#new_data_statistics['obs_std']
-        acs_mean = None#new_data_statistics['acs_mean']
-        acs_std = None#new_data_statistics['acs_std']
-        delta_mean = None#new_data_statistics['delta_mean']
-        delta_std = None#new_data_statistics['delta_std']
+        #all were nones
+        obs_mean = new_data_statistics['obs_mean']
+        obs_std = new_data_statistics['obs_std']
+        acs_mean = new_data_statistics['acs_mean']
+        acs_std = new_data_statistics['acs_std']
+        delta_mean = new_data_statistics['delta_mean']
+        delta_std = new_data_statistics['delta_std']
 
         next_obs_pred, _ = self(obs, acs, obs_mean, obs_std, acs_mean, acs_std, delta_mean, delta_std)
         prediction = next_obs_pred # TODO(Q1) get numpy array of the predicted next-states (s_t+1)
@@ -150,20 +151,24 @@ class FFModel(nn.Module, BaseModel):
         actions = ptu.from_numpy(actions)
         next_observations = ptu.from_numpy(next_observations)
 
-        # new_data_statistics = {
-        #     k: ptu.from_numpy(v) for k,v in data_statistics.items()
-        # }
+        new_data_statistics = {
+            k: ptu.from_numpy(v) for k,v in data_statistics.items()
+        }
 
-        obs_mean = None#new_data_statistics['obs_mean']
-        obs_std = None#new_data_statistics['obs_std']
-        acs_mean = None#new_data_statistics['acs_mean']
-        acs_std = None#new_data_statistics['acs_std']
-        delta_mean = None#new_data_statistics['delta_mean']
-        delta_std = None#new_data_statistics['delta_std']
+        #all were nones
+        obs_mean = new_data_statistics['obs_mean']
+        obs_std = new_data_statistics['obs_std']
+        acs_mean = new_data_statistics['acs_mean']
+        acs_std = new_data_statistics['acs_std']
+        delta_mean = new_data_statistics['delta_mean']
+        delta_std = new_data_statistics['delta_std']
 
         #did not use this one when subbmiting #target = normalize(next_observations, obs_mean, obs_std) - normalize(observations, obs_mean, obs_std) # TODO(Q1) compute the normalized target for the model.
-        #target = normalize(next_observations - observations, delta_mean, delta_std)
-        target = next_observations - observations
+        target = normalize(next_observations - observations, delta_mean, delta_std)
+        
+        #had this
+        #target = next_observations - observations
+        
         # Hint: you should use `data_statistics['delta_mean']` and
         # `data_statistics['delta_std']`, which keep track of the mean
         # and standard deviation of the model.

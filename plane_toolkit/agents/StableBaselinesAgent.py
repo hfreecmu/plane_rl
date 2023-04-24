@@ -77,8 +77,8 @@ class PPOAgent(BaseStableBaselinesAgent):
             ent_coef=0.00,
             use_sde=True,
             max_grad_norm=0.5,
-            n_epochs=20,
-            batch_size=256,
+            n_epochs=10,#20,
+            batch_size=64,#256,
         )
 
 class TD3Agent(BaseStableBaselinesAgent):
@@ -96,13 +96,13 @@ class TD3Agent(BaseStableBaselinesAgent):
         self.model = self.rl_alg_class(
             self.policy,
             env,
-            learning_rate=learning_rate,
-            buffer_size=10000,
+            learning_rate=1e-3,#learning_rate,
+            buffer_size=1000000,#10000,
             learning_starts=10000, 
             batch_size=128, 
-            tau=0.01, 
+            #tau=0.01, 
             gamma=0.99,
-            train_freq=4,
+            train_freq=1,
             gradient_steps=1,
             verbose=verbose,
         )

@@ -186,15 +186,6 @@ def R(q):
                      [q[2], -q[3],  q[0],  q[1]],
                      [q[3],  q[2], -q[1],  q[0]]])
 
-def calc_quat_error(q_traj, q_ref):
-    q_traj_conj = np.copy(q_traj)
-    q_traj_conj[1:] = -q_traj_conj[1:]
-
-    l_q_traj_conj = L(q_traj_conj)
-
-    loss = np.sum(l_q_traj_conj * q_ref)
-    return loss
-
 # Angle of attack
 def alpha(v):
     return np.arctan2(v[2], v[0])
@@ -286,3 +277,36 @@ def normalized_rk4_step(p, xk, uk, h):
     xn = xk + (h / 6.0) * (f1 + 2 * f2 + 2 * f3 + f4)
 
     return xn
+
+#load
+x_path = '/home/frc-ag-3/harry_ws/courses/grad_ai/final_project/trajectories/iLQR_loop/iLQR_Result.csv'
+df_x = pd.read_csv(x_path, header=None)
+x_ilqr = df_x.values
+
+u_path = '/home/frc-ag-3/harry_ws/courses/grad_ai/final_project/trajectories/iLQR_loop/loop_iLQR_controls.csv'
+df_u = pd.read_csv(u_path, header=None)
+u_ilqr = df_u.values
+
+Tf = 2.5
+h = 1.0/80
+tsamp = np.arange(0, Tf+h, h)
+N = len(tsamp)
+
+xhist_rk4 = np.zeros((13, N))
+xhist_rk4[:,0] = x_ilqr[0, :]
+
+p = YakPlane()
+for k in range(N-1):
+    xhist_rk4[:,k+1] = normalized_rk4_step(p, xhist_rk4[:,k], u_ilqr[k], h) # rk4 here
+
+pos_3d = xhist_rk4[0:3, :]
+
+fig = plt.figure()
+ax = fig.add_subplot(projection='3d')
+
+ax.scatter(pos_3d[0, :], pos_3d[1, :], pos_3d[2, :])
+ax.scatter(x_ilqr[:, 0], x_ilqr[:, 1], x_ilqr[:, 2])
+
+breakpoint()
+
+plt.show()

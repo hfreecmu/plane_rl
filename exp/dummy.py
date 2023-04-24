@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-target_traj_path = '/home/frc-ag-3/harry_ws/courses/grad_ai/final_project/harry_traj.csv'
+target_traj_path = '/home/frc-ag-3/harry_ws/courses/grad_ai/final_project/iLQR_Result.csv'
 df = pd.read_csv(target_traj_path, header=None)
 target_traj = df.values
 

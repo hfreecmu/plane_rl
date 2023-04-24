@@ -151,13 +151,13 @@ class MPCPolicy(BasePolicy):
         return mean_rewards
 
     def get_action(self, obs, env):
-        if True or self.data_statistics is None:
+        #if True or self.data_statistics is None:
+        if self.data_statistics is None:
             return self.sample_action_sequences(num_sequences=1, horizon=1, env=env)[0]
 
         # sample random actions (N x horizon)
-        horizon = np.min([env.max_steps - env.num_steps, self.horizon])
         candidate_action_sequences = self.sample_action_sequences(
-            num_sequences=self.N, horizon=horizon, env=env, obs=obs)
+            num_sequences=self.N, horizon=self.horizon, env=env, obs=obs)
 
         if candidate_action_sequences.shape[0] == 1:
             # CEM: only a single action sequence to consider; return the first action
@@ -183,12 +183,12 @@ class MPCPolicy(BasePolicy):
             acts = np.expand_dims(acts, 1)
 
             obs_sequences = np.vstack([obs]*acts.shape[0])
-            next_obs =  self.dyn_models[0].get_prediction(obs_sequences, acts, None)
+            next_obs =  self.dyn_models[0].get_prediction(obs_sequences, acts, self.data_statistics)
         else:
             acts = self.get_random_actions(self.N, 1)
 
             obs_sequences = np.vstack([obs]*acts.shape[0])
-            next_obs =  self.dyn_models[0].get_prediction(obs_sequences, acts[:, 0, :], None)
+            next_obs =  self.dyn_models[0].get_prediction(obs_sequences, acts[:, 0, :], self.data_statistics)
 
         predicted_rewards = env.get_est_reward(next_obs)
         best_action_sequence =  np.argmax(predicted_rewards)

@@ -1,3 +1,5 @@
+vis/
+dep/
 .vscode
 logs/
 models/

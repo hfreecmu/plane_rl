@@ -7,7 +7,7 @@ ex = Experiment("rl_train_test")
 
 @ex.config
 def config():
-    agent_types = ["MB"]  # Which agents to train or test on
+    agent_types = ["TD3"]  # Which agents to train or test on
     policy = "MlpPolicy"  # What policy to use, can also be CNN
     num_trials = 1#20  # How many test runs to run
     vis_dir = "vis"  # Where to save visualization
@@ -30,19 +30,14 @@ def config():
     }
     learning_rate = LR_DICT[agent_types[0]]
     n_steps = 2048
-    total_timesteps = 300000
+    total_timesteps = 1000000#300000
     verbose = 1
     save_freq = 1000
-    Tf = 5.0
-    h = 1.0/20.0
-    num_prev_steps = 3
-    num_future_steps = 3
-    clip_observations = 20.0
-    clip_actions = 1.0
     pos_rew_scale = 1.0
-    quat_rew_scale = 0.0
-    is_debug = False
-    target_traj_path = '/home/frc-ag-3/harry_ws/courses/grad_ai/final_project/harry_traj.csv'
+    quat_rew_scale = 1.0
+    u_rew_scale = 1.0
+    target_traj_yml = '/home/frc-ag-3/harry_ws/courses/grad_ai/final_project/trajectories/iLQR_loop/iqrl.yml'
+    obs_bound_factor = 2.0
     train = False
 
 @ex.automain
@@ -59,16 +54,11 @@ def main(
     total_timesteps,
     verbose,
     save_freq,
-    Tf,
-    h,
-    num_prev_steps,
-    num_future_steps,
-    clip_observations,
-    clip_actions,
     pos_rew_scale,
     quat_rew_scale,
-    is_debug,
-    target_traj_path,
+    u_rew_scale,
+    target_traj_yml,
+    obs_bound_factor,
     train,
     _run,
 ):

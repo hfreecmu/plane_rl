@@ -32,10 +32,7 @@ class RL_Trainer(object):
         seed = self.params['seed']
         np.random.seed(seed)
         torch.manual_seed(seed)
-        # ptu.init_gpu(
-        #     use_gpu=not self.params['no_gpu'],
-        #     gpu_id=self.params['which_gpu']
-        # )
+        ptu.init_gpu()
 
         #############
         ## ENV

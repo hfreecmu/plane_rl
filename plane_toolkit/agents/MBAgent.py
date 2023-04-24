@@ -33,7 +33,8 @@ class MBAgent(BaseAgent):
         self.actor = torch.load(model_path)
 
     def get_action(self, observation, env):
-        return self.actor.get_best_action(observation, env)[0][0], None
+        return self.actor.get_action(observation, env)[0], None
+        #return self.actor.get_best_action(observation, env)[0][0], None
 
     def _create_model(self, cfg, info_dict):
         ###hardcoding for now
@@ -42,7 +43,7 @@ class MBAgent(BaseAgent):
         cfg['size'] = 256
         cfg['num_agent_train_steps_per_iter'] = 1000 #20
         cfg['mpc_horizon'] = 5
-        cfg['mpc_num_action_sequences'] = 5000
+        cfg['mpc_num_action_sequences'] = 1000#5000
         cfg['mpc_action_sampling_strategy'] = 'random'
         cfg['cem_iterations'] = 4
         cfg['cem_num_elites'] = 5
@@ -52,13 +53,13 @@ class MBAgent(BaseAgent):
         #cfg['which_gpu'] = 0
         cfg['n_iter'] = 100#5
         cfg['scalar_log_freq'] = 1
-        cfg['batch_size'] = 10000
+        cfg['batch_size'] = 1000
         cfg['batch_size_initial'] = 10000
-        cfg['ep_len'] = info_dict['target_traj'].shape[0] - 1
-        cfg['add_sl_noise'] = False
+        cfg['ep_len'] = 250 #WARNING #how set this?
+        cfg['add_sl_noise'] = True#False
         cfg['train_batch_size'] = 512
         #TODO is this needed?
-        cfg['eval_batch_size'] = 400
+        cfg['eval_batch_size'] = 32
         cfg['save_params'] = True
         ###
 

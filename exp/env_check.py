@@ -5,24 +5,16 @@ from pandas import read_csv
 
 def run():
     info_dict = {}
-    info_dict["Tf"] = 5.0
-    info_dict["h"] = 1.0/20.0
-    info_dict["num_prev_steps"] = 5
-    info_dict["num_future_steps"] = 5
-    info_dict["clip_observations"] = 100.0
-    info_dict["clip_actions"] = 100.0
-    info_dict["pos_rew_scale"] = 0.7
-    info_dict["quat_rew_scale"] = 0.3
-    info_dict["is_debug"] = False
-
-    #load target_traj
-    target_traj_path = '/home/frc-ag-3/harry_ws/courses/grad_ai/final_project/harry_traj.csv'
-    df = read_csv(target_traj_path, header=None)
-    target_traj = df.values
-    info_dict["target_traj"] = target_traj
+    info_dict["target_traj_yml"] = '/home/frc-ag-3/harry_ws/courses/grad_ai/final_project/trajectories/iLQR_loop/iqrl.yml'
+    info_dict["obs_bound_factor"] = 2.0
+    info_dict["pos_rew_scale"] = 1.0
+    info_dict["quat_rew_scale"] = 1.0
+    info_dict["u_rew_scale"] = 1.0
 
     env = gym.make("plane-v0", info_dict=info_dict)
     check_env(env)
+
+    print('env check passed')
 
 if __name__ == "__main__":
     run()
