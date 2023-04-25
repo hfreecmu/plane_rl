@@ -244,7 +244,7 @@ class PlaneEnv(gym.Env):
         ang_vel_rew = 1.0/(1.0 + ang_vel_error**2)
 
         #quat, lin_vel, and ang_vel rewards only matter when close
-        reward = pos_rew + pos_rew * (quat_rew + lin_vel_rew + ang_vel_rew)
+        reward = pos_rew + pos_rew * (quat_rew + 0.5*lin_vel_rew + 0.5*ang_vel_rew)
 
         #reset when error is too far
         reset = (pos_error > self.pos_tol)

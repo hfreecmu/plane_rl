@@ -82,11 +82,12 @@ class PPOAgent(BaseStableBaselinesAgent):
             env,
             learning_rate=learning_rate,
             n_steps=n_steps,
-            batch_size=64,#256,
-            n_epochs = 10, #new
+            batch_size=256,#64,#256,
+            n_epochs = 8,#10, #new
             gamma = 0.99,
             gae_lambda = 0.95,
             clip_range = 0.2,
+            clip_range_vf = 0.2,
             normalize_advantage=True,
             ent_coef=0.00,
             vf_coef=1.0, #0.5, #unsure what it is in rl_games, but skrl 1.0
