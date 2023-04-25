@@ -138,8 +138,8 @@ class PlaneEnv(gym.Env):
         
         #unstable flight
         if (np.max(np.abs(x_new)) >= self.x_bound):
-            reward, pos_error, quat_error, _ = self.compute_reward(x_new)
-            #reward = -100
+            _, pos_error, quat_error, _ = self.compute_reward(x_new)
+            reward = -10
             
             self.x = x_new
             self.num_steps += 1
@@ -220,7 +220,9 @@ class PlaneEnv(gym.Env):
         if single_axis:
             #pos_error = np.linalg.norm(pos - self.ilqr_res[self.num_steps + 1, 0:3])
             pos_error = np.linalg.norm(pos - self.targets[self.num_steps, 0:3])
-            quat_error = calc_quat_error(quat, self.targets[self.num_steps, 3:7])
+            #quat_error = calc_quat_error(quat, self.targets[self.num_steps, 3:7])
+            quat_dot = np.sum(quat*self.targets[self.num_steps, 3:7])
+            quat_error = np.min([1-quat_dot, 1+quat_dot])
             lin_vel_error = np.linalg.norm(lin_vel - self.targets[self.num_steps, 7:10])
             ang_vel_error = np.linalg.norm(ang_vel - self.targets[self.num_steps, 10:13])
         else:

@@ -40,7 +40,7 @@ def config():
     target_traj_yml = '/home/frc-ag-3/harry_ws/courses/grad_ai/final_project/trajectories/iLQR_loop/iqrl.yml'
     #target_traj_yml = '/home/frc-ag-3/harry_ws/courses/grad_ai/final_project/trajectories/iLQR_immelman/iqrl.yml'
     obs_bound_factor = 10.0
-    pos_tol = 1.0
+    pos_tol = 2.0
     train = False
 
 @ex.automain
