@@ -1,9 +1,11 @@
 import os
 from plane_toolkit.agents.BaseAgent import BaseAgent
-from stable_baselines3 import PPO, TD3
+from stable_baselines3 import DDPG, PPO, SAC, TD3
 from stable_baselines3.common.vec_env import DummyVecEnv
 from stable_baselines3.common.callbacks import CheckpointCallback
+from stable_baselines3.common.noise import NormalActionNoise
 import torch
+import numpy as np
 
 class BaseStableBaselinesAgent(BaseAgent):
     def __init__(self, env):
@@ -56,6 +58,31 @@ class BaseStableBaselinesAgent(BaseAgent):
         """This needs to be defined in the subclass"""
         raise NotImplementedError()
     
+class DDPGAgent(BaseStableBaselinesAgent):
+    def __init__(self, env):
+        self.name = "DDPG"
+        self.policy = None
+        self.model_name = "ddpg_model"
+        self.model = None
+        self.rl_alg_class = DDPG
+
+    def _create_model(self, cfg, env):
+        learning_rate = cfg["learning_rate"]
+        verbose = cfg["verbose"]
+
+        n_actions = env.action_space.shape[-1]
+        action_noise = NormalActionNoise(
+            mean=np.zeros(n_actions), sigma=0.1 * np.ones(n_actions)
+        )
+
+        self.model = self.rl_alg_class(
+            self.policy,
+            env,
+            learning_rate=learning_rate,
+            verbose=verbose,
+            action_noise=action_noise,
+        )
+    
 class PPOAgent(BaseStableBaselinesAgent):
     def __init__(self, env):
         self.name = "PPO"
@@ -96,6 +123,23 @@ class PPOAgent(BaseStableBaselinesAgent):
             policy_kwargs=policy_kwargs,
             verbose=verbose,
         )
+
+class SACAgent(BaseStableBaselinesAgent):
+    def __init__(self, env):
+        self.name = "SAC"
+        self.policy = None
+        self.model_name = "sac_model"
+        self.model = None
+        self.rl_alg_class = SAC
+
+    def _create_model(self, cfg, env):
+        learning_rate = cfg["learning_rate"]
+        verbose = cfg["verbose"]
+
+        self.model = self.rl_alg_class(self.policy, 
+                                       env, 
+                                       learning_rate=learning_rate, 
+                                       verbose=verbose)
 
 class TD3Agent(BaseStableBaselinesAgent):
     def __init__(self, env):
